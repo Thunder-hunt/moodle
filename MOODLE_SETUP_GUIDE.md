@@ -1,6 +1,6 @@
 # Ubuntu 24.04 LAN Deployment
 
-This repository contains Moodle 5.2.3. Moodle 5.2 requires PHP 8.3 or newer and uses `public` as the web root.
+This repository contains Moodle 5.2.3 and uses `public` as the web root. Ubuntu will select the default PHP version for Ubuntu 24.04.
 
 Replace `moodle.lan` with your LAN hostname, `192.168.1.10` with the VM's static IP, and `192.168.1.0/24` with your LAN subnet.
 
@@ -9,9 +9,9 @@ Replace `moodle.lan` with your LAN hostname, `192.168.1.10` with the VM's static
 ```bash
 sudo apt update
 sudo apt install -y apache2 bind9 bind9-utils mariadb-server git openssl \
-  php8.3 php8.3-cli libapache2-mod-php8.3 php8.3-mysql php8.3-curl \
-  php8.3-gd php8.3-intl php8.3-mbstring php8.3-soap php8.3-xml \
-  php8.3-xmlrpc php8.3-zip php8.3-bcmath php8.3-sodium
+  php php-cli libapache2-mod-php php-mysql php-curl \
+  php-gd php-intl php-mbstring php-soap php-xml \
+  php-xmlrpc php-zip php-bcmath php-sodium
 ```
 
 ## Clone and protect Moodle
@@ -152,7 +152,7 @@ sudo systemctl reload apache2
 
 ## PHP and Moodle installation
 
-Set these values in `/etc/php/8.3/apache2/php.ini`, then restart Apache:
+Set these values in the active Apache PHP configuration file, typically `/etc/php/<version>/apache2/php.ini`, then restart Apache:
 
 ```ini
 memory_limit = 256M
