@@ -1,0 +1,30 @@
+# Local Moodle configuration and runtime data.
+/config.php
+/moodledata/
+
+# Editors and operating systems.
+/.idea/
+/.vscode/
+/.settings/
+/.project
+/.buildpath
+/.cache/
+/.DS_Store
+Thumbs.db
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+*~
+
+# Generated dependencies, test configuration, and build output.
+/vendor/
+/node_modules/
+composer.phar
+/behat.yml
+/phpunit.xml
+/.phpunit.cache/
+/.phpunit.result.cache
+/jsdoc/
+/.types/
+/public/admin/tool/componentlibrary/docs/
+/public/admin/tool/componentlibrary/hugo/site/data/my-index.json
+/.hugo_build.lock
