@@ -91,7 +91,7 @@ allow-recursion { localhost; 192.168.1.0/24; };
 ```bash
 sudo named-checkconf
 sudo named-checkzone rainar.net /etc/bind/db.rainar.net
-sudo systemctl enable --now bind9
+sudo systemctl enable --now named.service
 ```
 
 Advertise `192.168.1.10` as DNS through DHCP or configure clients manually. Test with `nslookup rainar.net 192.168.1.10` and `nslookup elearning.rainar.net 192.168.1.10`. If DNS is hosted by your domain registrar or another provider, create equivalent A records there instead of using this BIND zone.
@@ -208,7 +208,7 @@ sudo ufw allow OpenSSH
 sudo ufw allow 'Apache Full'
 sudo ufw allow from 192.168.1.0/24 to any port 53
 sudo ufw enable
-systemctl --no-pager --full status apache2 mariadb bind9
+systemctl --no-pager --full status apache2 mariadb named.service
 curl -kI https://rainar.net/
 curl -kI https://elearning.rainar.net/
 ```
