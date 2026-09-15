@@ -1,8 +1,8 @@
-# Ubuntu 24.04 LAN Deployment
+# Ubuntu 24.04 Deployment
 
 This repository contains Moodle 5.2.3 and uses `public` as the web root. Ubuntu will select the default PHP version for Ubuntu 24.04.
 
-Replace `moodle.lan` with your LAN hostname, `192.168.1.10` with the VM's static IP, and `192.168.1.0/24` with your LAN subnet.
+This setup serves the Apache default site at `https://rainar.net` and Moodle at `https://elearning.rainar.net`. Replace `192.168.1.10` with the VM's static IP and `192.168.1.0/24` with your LAN subnet. The DNS zone can be publicly hosted or managed by BIND9 for LAN-only access.
 
 ## Install packages
 
@@ -57,25 +57,26 @@ max_allowed_packet = 256M
 sudo systemctl restart mariadb
 ```
 
-## BIND9 LAN DNS
+## BIND9 DNS
 
-Add this zone to `/etc/bind/named.conf.local`:
+If BIND9 is authoritative for `rainar.net`, add this zone to `/etc/bind/named.conf.local`:
 
 ```conf
-zone "lan" {
+zone "rainar.net" {
     type primary;
-    file "/etc/bind/db.lan";
+    file "/etc/bind/db.rainar.net";
 };
 ```
 
-Create `/etc/bind/db.lan`:
+Create `/etc/bind/db.rainar.net`:
 
 ```dns
 $TTL 86400
-@ IN SOA ns1.lan. admin.lan. (2026091501 3600 1800 604800 86400)
-  IN NS ns1.lan.
-ns1 IN A 192.168.1.10
-moodle IN A 192.168.1.10
+@       IN SOA ns1.rainar.net. admin.rainar.net. (2026091501 3600 1800 604800 86400)
+        IN NS ns1.rainar.net.
+ns1     IN A 192.168.1.10
+@       IN A 192.168.1.10
+elearning IN A 192.168.1.10
 ```
 
 In the existing `options` block, restrict DNS to the LAN:
@@ -89,22 +90,22 @@ allow-recursion { localhost; 192.168.1.0/24; };
 
 ```bash
 sudo named-checkconf
-sudo named-checkzone lan /etc/bind/db.lan
+sudo named-checkzone rainar.net /etc/bind/db.rainar.net
 sudo systemctl enable --now bind9
 ```
 
-Advertise `192.168.1.10` as DNS through DHCP or configure clients manually. Test with `nslookup moodle.lan 192.168.1.10`.
+Advertise `192.168.1.10` as DNS through DHCP or configure clients manually. Test with `nslookup rainar.net 192.168.1.10` and `nslookup elearning.rainar.net 192.168.1.10`. If DNS is hosted by your domain registrar or another provider, create equivalent A records there instead of using this BIND zone.
 
 ## Self-signed HTTPS
 
 ```bash
 sudo install -d -m 0755 /etc/ssl/localcerts
 sudo openssl req -x509 -nodes -newkey rsa:4096 -sha256 -days 730 \
-  -keyout /etc/ssl/private/moodle.lan.key \
-  -out /etc/ssl/localcerts/moodle.lan.crt \
-  -subj "/CN=moodle.lan" \
-  -addext "subjectAltName=DNS:moodle.lan,IP:192.168.1.10"
-sudo chmod 0600 /etc/ssl/private/moodle.lan.key
+  -keyout /etc/ssl/private/rainar.net.key \
+  -out /etc/ssl/localcerts/rainar.net.crt \
+  -subj "/CN=rainar.net" \
+  -addext "subjectAltName=DNS:rainar.net,DNS:elearning.rainar.net,IP:192.168.1.10"
+sudo chmod 0600 /etc/ssl/private/rainar.net.key
 ```
 
 Import the `.crt` into each client device's trusted root store to remove browser warnings.
@@ -118,15 +119,37 @@ sudoedit /etc/apache2/sites-available/moodle.conf
 
 ```apache
 <VirtualHost *:80>
-    ServerName moodle.lan
-    Redirect permanent / https://moodle.lan/
+    ServerName rainar.net
+    ServerAlias www.rainar.net
+    DocumentRoot /var/www/html
+    Redirect permanent / https://rainar.net/
 </VirtualHost>
 <VirtualHost *:443>
-    ServerName moodle.lan
+    ServerName rainar.net
+    ServerAlias www.rainar.net
+    DocumentRoot /var/www/html
+    SSLEngine on
+    SSLCertificateFile /etc/ssl/localcerts/rainar.net.crt
+    SSLCertificateKeyFile /etc/ssl/private/rainar.net.key
+    <Directory /var/www/html>
+        Options FollowSymLinks
+        AllowOverride None
+        Require all granted
+        DirectoryIndex index.html
+    </Directory>
+</VirtualHost>
+
+<VirtualHost *:80>
+    ServerName elearning.rainar.net
+    Redirect permanent / https://elearning.rainar.net/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName elearning.rainar.net
     DocumentRoot /var/www/moodle/public
     SSLEngine on
-    SSLCertificateFile /etc/ssl/localcerts/moodle.lan.crt
-    SSLCertificateKeyFile /etc/ssl/private/moodle.lan.key
+    SSLCertificateFile /etc/ssl/localcerts/rainar.net.crt
+    SSLCertificateKeyFile /etc/ssl/private/rainar.net.key
     <Directory /var/www/moodle/public>
         Options FollowSymLinks
         AllowOverride None
@@ -167,7 +190,7 @@ max_input_vars = 5000
 ```bash
 sudo systemctl restart apache2
 sudo -u www-data php /var/www/moodle/public/admin/cli/install.php \
-  --lang=en --wwwroot=https://moodle.lan --dataroot=/var/lib/moodledata \
+  --lang=en --wwwroot=https://elearning.rainar.net --dataroot=/var/lib/moodledata \
   --dbtype=mariadb --dbhost=localhost --dbname=moodle --dbuser=moodle \
   --dbpass='CHANGE_ME' --fullname='My Moodle' --shortname='Moodle' \
   --adminuser=admin --adminpass='CHANGE_ADMIN_PASSWORD' \
@@ -186,7 +209,8 @@ sudo ufw allow 'Apache Full'
 sudo ufw allow from 192.168.1.0/24 to any port 53
 sudo ufw enable
 systemctl --no-pager --full status apache2 mariadb bind9
-curl -kI https://moodle.lan/
+curl -kI https://rainar.net/
+curl -kI https://elearning.rainar.net/
 ```
 
 Back up the database and `/var/lib/moodledata` before upgrades. Never commit either, the TLS private key, or `config.php`.
