@@ -28,6 +28,10 @@ You may also be interested in:
 
 Moodle is Free, and Open Source software. You can easily [download Moodle][9] and run it on your own web server, however you may prefer to work with one of our experienced [Moodle Partners][10].
 
+## This deployment
+
+See [MOODLE_SETUP_GUIDE.md](MOODLE_SETUP_GUIDE.md) for the Ubuntu 24.04 LAN deployment using Apache2, BIND9, MariaDB, PHP 8.3, and self-signed HTTPS.
+
 Moodle also offers hosting through both [MoodleCloud][11], and our [partner network][10].
 
 ## License
