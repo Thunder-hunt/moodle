@@ -1,10 +1,12 @@
-# Ubuntu 24.04 Deployment
+# Ubuntu Deployment
 
-This repository contains Moodle 5.2.3 and uses `public` as the web root. Moodle requires PHP 8.3 or newer; this guide installs PHP 8.3 on Ubuntu 24.04.
+This repository contains Moodle 5.2.3 and uses `public` as the web root. Moodle requires PHP 8.3 or newer. The commands below target Ubuntu 24.04. Ubuntu 22.04 users must add the PHP repository described below or upgrade to Ubuntu 24.04.
 
 This setup serves the Apache default site at `https://rainar.net` and Moodle at `https://elearning.rainar.net`. Replace `192.168.1.10` with the VM's static IP and `192.168.1.0/24` with your LAN subnet. The DNS zone can be publicly hosted or managed by BIND9 for LAN-only access.
 
 ## Install packages
+
+On Ubuntu 24.04, install PHP 8.3 from the standard Ubuntu repositories:
 
 ```bash
 sudo apt update
@@ -13,6 +15,22 @@ sudo apt install -y apache2 bind9 bind9-utils mariadb-server git openssl \
   php8.3-gd php8.3-intl php8.3-mbstring php8.3-soap php8.3-xml \
   php8.3-xmlrpc php8.3-zip php8.3-bcmath
 ```
+
+If the server is Ubuntu 22.04 (Jammy), the standard repositories provide PHP 8.1, which is too old for this Moodle version. Add the trusted Ondrej PHP repository first, then run the package installation command above:
+
+```bash
+sudo apt install -y software-properties-common
+sudo add-apt-repository ppa:ondrej/php
+sudo apt update
+```
+
+Confirm the installed version before continuing:
+
+```bash
+php -v
+```
+
+The output must show PHP 8.3 or newer.
 
 The Sodium extension is included with supported PHP versions on Ubuntu 24.04, so it does not need a separate package.
 
