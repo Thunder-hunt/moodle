@@ -11,8 +11,10 @@ sudo apt update
 sudo apt install -y apache2 bind9 bind9-utils mariadb-server git openssl \
   php php-cli libapache2-mod-php php-mysql php-curl \
   php-gd php-intl php-mbstring php-soap php-xml \
-  php-xmlrpc php-zip php-bcmath php-sodium
+  php-xmlrpc php-zip php-bcmath
 ```
+
+The Sodium extension is included with supported PHP versions on Ubuntu 24.04, so it does not need a separate package.
 
 ## Clone and protect Moodle
 
