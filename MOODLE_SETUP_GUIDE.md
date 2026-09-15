@@ -1,6 +1,6 @@
 # Ubuntu 24.04 Deployment
 
-This repository contains Moodle 5.2.3 and uses `public` as the web root. Ubuntu will select the default PHP version for Ubuntu 24.04.
+This repository contains Moodle 5.2.3 and uses `public` as the web root. Moodle requires PHP 8.3 or newer; this guide installs PHP 8.3 on Ubuntu 24.04.
 
 This setup serves the Apache default site at `https://rainar.net` and Moodle at `https://elearning.rainar.net`. Replace `192.168.1.10` with the VM's static IP and `192.168.1.0/24` with your LAN subnet. The DNS zone can be publicly hosted or managed by BIND9 for LAN-only access.
 
@@ -9,9 +9,9 @@ This setup serves the Apache default site at `https://rainar.net` and Moodle at 
 ```bash
 sudo apt update
 sudo apt install -y apache2 bind9 bind9-utils mariadb-server git openssl \
-  php php-cli libapache2-mod-php php-mysql php-curl \
-  php-gd php-intl php-mbstring php-soap php-xml \
-  php-xmlrpc php-zip php-bcmath
+  php8.3 php8.3-cli libapache2-mod-php8.3 php8.3-mysql php8.3-curl \
+  php8.3-gd php8.3-intl php8.3-mbstring php8.3-soap php8.3-xml \
+  php8.3-xmlrpc php8.3-zip php8.3-bcmath
 ```
 
 The Sodium extension is included with supported PHP versions on Ubuntu 24.04, so it does not need a separate package.
