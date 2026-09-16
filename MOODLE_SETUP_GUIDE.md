@@ -1,12 +1,12 @@
-# Ubuntu Deployment
+# Deployment Ubuntu
 
-This repository contains Moodle 5.2.3 and uses `public` as the web root. Moodle requires PHP 8.3 or newer. The commands below target Ubuntu 24.04. Ubuntu 22.04 users must add the PHP repository described below or upgrade to Ubuntu 24.04.
+Repositori ini berisi Moodle 5.2.3 dan menggunakan `public` sebagai root web. Moodle memerlukan PHP 8.3 atau yang lebih baru. Perintah di bawah ditujukan untuk Ubuntu 24.04. Pengguna Ubuntu 22.04 harus menambahkan repositori PHP yang dijelaskan di bawah atau melakukan upgrade ke Ubuntu 24.04.
 
-This setup serves the Apache default site at `https://rainar.net` and Moodle at `https://elearning.rainar.net`. Replace `192.168.1.10` with the VM's static IP and `192.168.1.0/24` with your LAN subnet. The DNS zone can be publicly hosted or managed by BIND9 for LAN-only access.
+Setup ini mengarahkan `https://rainar.net` ke Moodle di `https://elearning.rainar.net`. Ganti `192.168.1.10` dengan IP statis VM dan `192.168.1.0/24` dengan subnet LAN Anda. Zona DNS dapat di-host secara publik atau dikelola oleh BIND9 untuk akses khusus LAN.
 
-## Install packages
+## Instal Paket
 
-On Ubuntu 24.04, install PHP 8.3 from the standard Ubuntu repositories:
+Di Ubuntu 24.04, instal PHP 8.3 dari repositori standar Ubuntu:
 
 ```bash
 sudo apt update
@@ -16,7 +16,7 @@ sudo apt install -y apache2 bind9 bind9-utils mariadb-server git openssl \
   php8.3-xmlrpc php8.3-zip php8.3-bcmath
 ```
 
-If the server is Ubuntu 22.04 (Jammy), the standard repositories provide PHP 8.1, which is too old for this Moodle version. Add the trusted Ondrej PHP repository first, then run the package installation command above:
+Jika server menggunakan Ubuntu 22.04 (Jammy), repositori standar menyediakan PHP 8.1 yang terlalu lama untuk versi Moodle ini. Tambahkan repositori PHP Ondrej terlebih dahulu, kemudian jalankan perintah instalasi paket di atas:
 
 ```bash
 sudo apt install -y software-properties-common
@@ -24,17 +24,17 @@ sudo add-apt-repository ppa:ondrej/php
 sudo apt update
 ```
 
-Confirm the installed version before continuing:
+Periksa versi yang terinstal sebelum melanjutkan:
 
 ```bash
 php -v
 ```
 
-The output must show PHP 8.3 or newer.
+Output harus menunjukkan PHP 8.3 atau yang lebih baru.
 
-The Sodium extension is included with supported PHP versions on Ubuntu 24.04, so it does not need a separate package.
+Ekstensi Sodium sudah termasuk dalam versi PHP yang didukung pada Ubuntu 24.04, sehingga tidak memerlukan paket terpisah.
 
-## Clone and protect Moodle
+## Clone dan Amankan Moodle
 
 ```bash
 sudo git clone https://github.com/Thunder-hunt/moodle.git /var/www/moodle
@@ -46,7 +46,7 @@ sudo chown -R www-data:www-data /var/lib/moodledata
 sudo chmod 0770 /var/lib/moodledata
 ```
 
-Keep `moodledata` outside the web root. It and `config.php` are ignored by Git.
+Simpan `moodledata` di luar root web. Direktori tersebut dan `config.php` diabaikan oleh Git.
 
 ## MariaDB
 
@@ -63,7 +63,7 @@ FLUSH PRIVILEGES;
 EXIT;
 ```
 
-For MariaDB 10.6+, use `/etc/mysql/mariadb.conf.d/60-moodle.cnf`:
+Untuk MariaDB 10.6 atau yang lebih baru, gunakan `/etc/mysql/mariadb.conf.d/60-moodle.cnf`:
 
 ```ini
 [mysqld]
@@ -75,9 +75,9 @@ max_allowed_packet = 256M
 sudo systemctl restart mariadb
 ```
 
-## BIND9 DNS
+## DNS BIND9
 
-If BIND9 is authoritative for `rainar.net`, add this zone to `/etc/bind/named.conf.local`:
+Jika BIND9 menjadi server authoritative untuk `rainar.net`, tambahkan zona ini ke `/etc/bind/named.conf.local`:
 
 ```conf
 zone "rainar.net" {
@@ -86,7 +86,7 @@ zone "rainar.net" {
 };
 ```
 
-Create `/etc/bind/db.rainar.net`:
+Buat `/etc/bind/db.rainar.net`:
 
 ```dns
 $TTL 86400
@@ -97,7 +97,7 @@ ns1     IN A 192.168.1.10
 elearning IN A 192.168.1.10
 ```
 
-In the existing `options` block, restrict DNS to the LAN:
+Pada blok `options` yang sudah ada, batasi DNS ke jaringan LAN:
 
 ```conf
 listen-on { 127.0.0.1; 192.168.1.10; };
@@ -112,9 +112,9 @@ sudo named-checkzone rainar.net /etc/bind/db.rainar.net
 sudo systemctl enable --now named.service
 ```
 
-Advertise `192.168.1.10` as DNS through DHCP or configure clients manually. Test with `nslookup rainar.net 192.168.1.10` and `nslookup elearning.rainar.net 192.168.1.10`. If DNS is hosted by your domain registrar or another provider, create equivalent A records there instead of using this BIND zone.
+Distribusikan `192.168.1.10` sebagai DNS melalui DHCP atau konfigurasikan klien secara manual. Uji dengan `nslookup rainar.net 192.168.1.10` dan `nslookup elearning.rainar.net 192.168.1.10`. Jika DNS di-host oleh registrar domain atau penyedia lain, buat record A yang setara di sana dan jangan gunakan zona BIND ini.
 
-## Self-signed HTTPS
+## HTTPS Self-signed
 
 ```bash
 sudo install -d -m 0755 /etc/ssl/localcerts
@@ -126,7 +126,7 @@ sudo openssl req -x509 -nodes -newkey rsa:4096 -sha256 -days 730 \
 sudo chmod 0600 /etc/ssl/private/rainar.net.key
 ```
 
-Import the `.crt` into each client device's trusted root store to remove browser warnings.
+Impor file `.crt` ke penyimpanan root tepercaya pada setiap perangkat klien untuk menghilangkan peringatan browser.
 
 ## Apache
 
@@ -139,22 +139,15 @@ sudoedit /etc/apache2/sites-available/moodle.conf
 <VirtualHost *:80>
     ServerName rainar.net
     ServerAlias www.rainar.net
-    DocumentRoot /var/www/html
-    Redirect permanent / https://rainar.net/
+    Redirect permanent / https://elearning.rainar.net/
 </VirtualHost>
 <VirtualHost *:443>
     ServerName rainar.net
     ServerAlias www.rainar.net
-    DocumentRoot /var/www/html
     SSLEngine on
     SSLCertificateFile /etc/ssl/localcerts/rainar.net.crt
     SSLCertificateKeyFile /etc/ssl/private/rainar.net.key
-    <Directory /var/www/html>
-        Options FollowSymLinks
-        AllowOverride None
-        Require all granted
-        DirectoryIndex index.html
-    </Directory>
+    Redirect permanent / https://elearning.rainar.net/
 </VirtualHost>
 
 <VirtualHost *:80>
@@ -193,9 +186,9 @@ sudo apache2ctl configtest
 sudo systemctl reload apache2
 ```
 
-## PHP and Moodle installation
+## Instalasi PHP dan Moodle
 
-Set these values in the active Apache PHP configuration file, typically `/etc/php/<version>/apache2/php.ini`, then restart Apache:
+Atur nilai berikut pada file konfigurasi PHP Apache yang aktif, biasanya `/etc/php/<version>/apache2/php.ini`, lalu mulai ulang Apache:
 
 ```ini
 memory_limit = 256M
@@ -208,7 +201,7 @@ max_input_vars = 5000
 ```bash
 sudo systemctl restart apache2
 sudo -u www-data php /var/www/moodle/public/admin/cli/install.php \
-  --lang=en --wwwroot=https://elearning.rainar.net --dataroot=/var/lib/moodledata \
+  --lang=id --wwwroot=https://elearning.rainar.net --dataroot=/var/lib/moodledata \
   --dbtype=mariadb --dbhost=localhost --dbname=moodle --dbuser=moodle \
   --dbpass='CHANGE_ME' --fullname='My Moodle' --shortname='Moodle' \
   --adminuser=admin --adminpass='CHANGE_ADMIN_PASSWORD' \
@@ -217,7 +210,7 @@ sudo chown root:www-data /var/www/moodle/config.php
 sudo chmod 0640 /var/www/moodle/config.php
 ```
 
-## Cron, firewall, and checks
+## Cron, Firewall, dan Pemeriksaan
 
 ```bash
 sudo sh -c 'printf "%s\n" "* * * * * www-data /usr/bin/php /var/www/moodle/public/admin/cli/cron.php >/dev/null 2>&1" > /etc/cron.d/moodle'
@@ -231,4 +224,4 @@ curl -kI https://rainar.net/
 curl -kI https://elearning.rainar.net/
 ```
 
-Back up the database and `/var/lib/moodledata` before upgrades. Never commit either, the TLS private key, or `config.php`.
+Buat cadangan database dan `/var/lib/moodledata` sebelum upgrade. Jangan pernah commit database, direktori tersebut, private key TLS, atau `config.php` ke Git.
