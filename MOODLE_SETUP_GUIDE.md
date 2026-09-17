@@ -231,17 +231,34 @@ user2,User1234!,User,2,user2@example.com
 
 Password latihan seluruh akun adalah `User1234!` dan sudah memenuhi kebijakan password standar Moodle. Alamat `example.com` hanya untuk latihan, bukan email pengguna nyata.
 
-### Pilih CSV melalui Web Moodle
+### Tampilkan CSV sebagai Category 1 di File Picker
+
+Folder **Category 1** yang sudah terlihat di dalam **Content bank** bukan folder umum untuk CSV. Content bank digunakan untuk konten seperti H5P, sehingga `users.csv` tidak boleh dimasukkan ke folder tersebut. Agar **Category 1** muncul sebagai pilihan tersendiri di panel kiri file picker dan berisi `users.csv`, buat instance **File system repository** dengan nama yang sama:
 
 1. Masuk sebagai administrator Moodle.
 2. Buka **Administrasi situs > Plugin > Repositori > Kelola repositori**.
-3. Aktifkan repositori **File system**, kemudian buat instance repository.
-4. Beri nama `Import Users` dan pilih subdirektori `import-users`.
-5. Buka **Administrasi situs > Pengguna > Akun > Upload pengguna**.
-6. Pada pemilih file, pilih repository **Import Users**, lalu pilih `users.csv`.
-7. Gunakan delimiter koma dan encoding UTF-8, periksa preview, lalu jalankan import.
+3. Cari **File system**, lalu ubah statusnya menjadi **Aktif dan terlihat** (`Enabled and visible`).
+4. Klik **Buat instance repositori** (`Create a repository instance`).
+5. Isi nama instance dengan `Category 1`.
+6. Pilih direktori `import-users`, lalu simpan. Opsi relative files tidak perlu diaktifkan.
+7. Buka **Administrasi situs > Pengguna > Akun > Upload pengguna**.
+8. Klik **Choose a file...**. Pilihan **Category 1** sekarang muncul langsung di panel kiri file picker.
+9. Klik **Category 1**, pilih `users.csv`, lalu klik **Select this file**.
+10. Gunakan separator koma dan encoding UTF-8, periksa preview, lalu jalankan import.
 
-Moodle hanya menampilkan subdirektori yang berada di `/var/lib/moodledata/repository/`. Jika `import-users` tidak muncul, periksa kembali lokasi dan permission direktori, kemudian bersihkan cache Moodle.
+Dengan konfigurasi ini akan ada dua nama **Category 1** yang berbeda:
+
+- **Content bank > Category 1** adalah area konten Moodle dan tidak digunakan untuk CSV pengguna.
+- **Category 1** di panel kiri adalah File system repository yang membaca `/var/lib/moodledata/repository/import-users/users.csv`.
+
+Moodle hanya menawarkan direktori yang berada di `/var/lib/moodledata/repository/` saat membuat File system repository. Jika `import-users` tidak muncul atau **Category 1** belum terlihat di file picker, jalankan:
+
+```bash
+sudo chown -R www-data:www-data /var/lib/moodledata/repository
+sudo chmod 0770 /var/lib/moodledata/repository
+sudo chmod 0770 /var/lib/moodledata/repository/import-users
+sudo -u www-data php /var/www/moodle/public/admin/cli/purge_caches.php
+```
 
 ### Import Langsung melalui CLI
 
