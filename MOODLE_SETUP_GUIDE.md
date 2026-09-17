@@ -38,15 +38,18 @@ Ekstensi Sodium sudah termasuk dalam versi PHP yang didukung pada Ubuntu 24.04, 
 
 ```bash
 sudo git clone https://github.com/Thunder-hunt/moodle.git /var/www/moodle
-sudo mkdir -p /var/lib/moodledata
+sudo mkdir -p /var/lib/moodledata/repository/import-users
 sudo chown -R root:www-data /var/www/moodle
 sudo find /var/www/moodle -type d -exec chmod 0755 {} \;
 sudo find /var/www/moodle -type f -exec chmod 0644 {} \;
 sudo chown -R www-data:www-data /var/lib/moodledata
 sudo chmod 0770 /var/lib/moodledata
+sudo chmod 0770 /var/lib/moodledata/repository /var/lib/moodledata/repository/import-users
+sudo install -o www-data -g www-data -m 0640 \
+  /var/www/moodle/users.csv /var/lib/moodledata/repository/import-users/users.csv
 ```
 
-Simpan `moodledata` di luar root web. Direktori tersebut dan `config.php` diabaikan oleh Git.
+Simpan `moodledata` di luar root web. Direktori tersebut dan `config.php` diabaikan oleh Git. `users.csv` ikut ter-clone di root repositori dan disalin saat setup ke `repository/import-users`, agar bisa dipilih melalui file picker Moodle. Jika mengubah CSV setelah deployment, salin ulang dengan perintah `sudo install` di atas.
 
 ## MariaDB
 
@@ -208,6 +211,57 @@ sudo -u www-data php /var/www/moodle/public/admin/cli/install.php \
   --adminemail='admin@example.invalid' --non-interactive --agree-license
 sudo chown root:www-data /var/www/moodle/config.php
 sudo chmod 0640 /var/www/moodle/config.php
+```
+
+## Import Pengguna dari CSV di Server
+
+Untuk latihan kelas ini, `users.csv` di root repositori memang berisi akun contoh dengan password yang sama dan ikut di-clone. Jangan gunakan akun atau password ini untuk pengguna nyata; siapa pun yang punya akses ke repositori dapat membacanya. Root web adalah `/var/www/moodle/public`, jadi jangan pindahkan CSV ke dalam `public/`. Moodle membaca salinan CSV dari:
+
+```text
+/var/lib/moodledata/repository/import-users/
+```
+
+CSV untuk membuat pengguna baru minimal berisi `username`, `password`, `firstname`, `lastname`, dan `email`. File `users.csv` yang ikut di-clone sudah menggunakan format ini. Contoh:
+
+```csv
+username,password,firstname,lastname,email
+user1,User1234!,User,1,user1@example.com
+user2,User1234!,User,2,user2@example.com
+```
+
+Password latihan seluruh akun adalah `User1234!` dan sudah memenuhi kebijakan password standar Moodle. Alamat `example.com` hanya untuk latihan, bukan email pengguna nyata.
+
+### Pilih CSV melalui Web Moodle
+
+1. Masuk sebagai administrator Moodle.
+2. Buka **Administrasi situs > Plugin > Repositori > Kelola repositori**.
+3. Aktifkan repositori **File system**, kemudian buat instance repository.
+4. Beri nama `Import Users` dan pilih subdirektori `import-users`.
+5. Buka **Administrasi situs > Pengguna > Akun > Upload pengguna**.
+6. Pada pemilih file, pilih repository **Import Users**, lalu pilih `users.csv`.
+7. Gunakan delimiter koma dan encoding UTF-8, periksa preview, lalu jalankan import.
+
+Moodle hanya menampilkan subdirektori yang berada di `/var/lib/moodledata/repository/`. Jika `import-users` tidak muncul, periksa kembali lokasi dan permission direktori, kemudian bersihkan cache Moodle.
+
+### Import Langsung melalui CLI
+
+Administrator server juga dapat menjalankan import tanpa file picker web:
+
+```bash
+sudo -u www-data php /var/www/moodle/public/admin/tool/uploaduser/cli/uploaduser.php \
+  --file=/var/lib/moodledata/repository/import-users/users.csv
+```
+
+Periksa ringkasan hasil import yang dicetak oleh perintah tersebut. Tampilkan seluruh opsi jika perlu mengubah mode pembuatan atau pembaruan pengguna:
+
+```bash
+sudo -u www-data php /var/www/moodle/public/admin/tool/uploaduser/cli/uploaduser.php --help
+```
+
+Setelah import berhasil, salinan di `moodledata` dapat dihapus jika tidak lagi diperlukan. File asli tetap berada di repositori Git dan akan ikut saat clone berikutnya:
+
+```bash
+sudo rm /var/lib/moodledata/repository/import-users/users.csv
 ```
 
 ## Cron, Firewall, dan Pemeriksaan
