@@ -2,7 +2,49 @@
 
 Repositori ini berisi Moodle 5.2.3 dan menggunakan `public` sebagai root web. Moodle memerlukan PHP 8.3 atau yang lebih baru. Perintah di bawah ditujukan untuk Ubuntu 24.04. Pengguna Ubuntu 22.04 harus menambahkan repositori PHP yang dijelaskan di bawah atau melakukan upgrade ke Ubuntu 24.04.
 
-Setup ini mengarahkan `https://rainar.net` ke Moodle di `https://elearning.rainar.net`. Ganti `192.168.1.10` dengan IP statis VM dan `192.168.1.0/24` dengan subnet LAN Anda. Zona DNS dapat di-host secara publik atau dikelola oleh BIND9 untuk akses khusus LAN.
+Setup ini mengarahkan `https://rainar.net` ke Moodle di `https://elearning.rainar.net`. VM menggunakan `172.20.3.35` pada Bridged Adapter agar dapat diakses perangkat lain di LAN `172.20.3.0/24`. Alamat `10.10.10.35` tetap digunakan pada Host-Only Adapter dan hanya untuk akses dari komputer host. Jika jaringan berubah, sesuaikan alamat bridged, gateway, subnet DNS, sertifikat, dan aturan firewall secara bersamaan.
+
+## Jaringan VirtualBox dan Netplan
+
+Atur adapter VM di VirtualBox sebagai berikut:
+
+- **Adapter 1**: `NAT`, untuk akses internet VM.
+- **Adapter 2**: `Bridged Adapter`, pilih `Realtek USB FE Family Controller`, agar VM dapat diakses perangkat lain pada jaringan yang sama.
+- **Adapter 3**: `Host-only Adapter`, untuk akses khusus dari komputer host.
+- Aktifkan **Cable Connected** pada ketiga adapter.
+
+Gunakan `/etc/netplan/50-cloud-init.yaml` berikut. Pada VM ini `enp0s3` adalah NAT, `enp0s8` adalah bridged, dan `enp0s9` adalah host-only:
+
+```yaml
+network:
+  version: 2
+  ethernets:
+    enp0s3:
+      dhcp4: true
+    enp0s8:
+      dhcp4: false
+      addresses:
+        - 172.20.3.35/24
+      optional: true
+    enp0s9:
+      dhcp4: false
+      addresses:
+        - 10.10.10.35/24
+      optional: true
+```
+
+Default route tidak perlu ditambahkan pada `enp0s8` atau `enp0s9` karena koneksi internet tetap menggunakan NAT `enp0s3`. Terapkan dan periksa konfigurasi:
+
+```bash
+sudo netplan generate
+sudo netplan try
+sudo netplan apply
+ip -br -4 addr
+ip route
+ping -c 4 172.20.3.1
+```
+
+Hasil akhirnya harus menunjukkan `172.20.3.35/24` pada `enp0s8` dan `10.10.10.35/24` pada `enp0s9`. Perangkat lain harus memakai `172.20.3.35`, bukan alamat host-only `10.10.10.35`. Pastikan `172.20.3.35` belum dipakai perangkat lain atau buat reservasi alamat tersebut pada DHCP server jaringan.
 
 ## Instal Paket
 
@@ -95,18 +137,18 @@ Buat `/etc/bind/db.rainar.net`:
 $TTL 86400
 @       IN SOA ns1.rainar.net. admin.rainar.net. (2026091501 3600 1800 604800 86400)
         IN NS ns1.rainar.net.
-ns1     IN A 192.168.1.10
-@       IN A 192.168.1.10
-elearning IN A 192.168.1.10
+ns1     IN A 172.20.3.35
+@       IN A 172.20.3.35
+elearning IN A 172.20.3.35
 ```
 
 Pada blok `options` yang sudah ada, batasi DNS ke jaringan LAN:
 
 ```conf
-listen-on { 127.0.0.1; 192.168.1.10; };
+listen-on { 127.0.0.1; 172.20.3.35; 10.10.10.35; };
 listen-on-v6 { none; };
-allow-query { localhost; 192.168.1.0/24; };
-allow-recursion { localhost; 192.168.1.0/24; };
+allow-query { localhost; 172.20.3.0/24; 10.10.10.0/24; };
+allow-recursion { localhost; 172.20.3.0/24; 10.10.10.0/24; };
 ```
 
 ```bash
@@ -115,7 +157,7 @@ sudo named-checkzone rainar.net /etc/bind/db.rainar.net
 sudo systemctl enable --now named.service
 ```
 
-Distribusikan `192.168.1.10` sebagai DNS melalui DHCP atau konfigurasikan klien secara manual. Uji dengan `nslookup rainar.net 192.168.1.10` dan `nslookup elearning.rainar.net 192.168.1.10`. Jika DNS di-host oleh registrar domain atau penyedia lain, buat record A yang setara di sana dan jangan gunakan zona BIND ini.
+Distribusikan `172.20.3.35` sebagai DNS melalui DHCP atau konfigurasikan klien secara manual. Uji dengan `nslookup rainar.net 172.20.3.35` dan `nslookup elearning.rainar.net 172.20.3.35`. Untuk pengujian cepat tanpa mengganti DNS klien, tambahkan `172.20.3.35 rainar.net elearning.rainar.net` ke file `hosts` klien. Jika DNS di-host oleh registrar domain atau penyedia lain, buat record A yang setara di sana dan jangan gunakan zona BIND ini.
 
 ## HTTPS Self-signed
 
@@ -125,7 +167,7 @@ sudo openssl req -x509 -nodes -newkey rsa:4096 -sha256 -days 730 \
   -keyout /etc/ssl/private/rainar.net.key \
   -out /etc/ssl/localcerts/rainar.net.crt \
   -subj "/CN=rainar.net" \
-  -addext "subjectAltName=DNS:rainar.net,DNS:elearning.rainar.net,IP:192.168.1.10"
+  -addext "subjectAltName=DNS:rainar.net,DNS:elearning.rainar.net,IP:172.20.3.35,IP:10.10.10.35"
 sudo chmod 0600 /etc/ssl/private/rainar.net.key
 ```
 
@@ -203,15 +245,46 @@ max_input_vars = 5000
 
 ```bash
 sudo systemctl restart apache2
-sudo -u www-data php /var/www/moodle/public/admin/cli/install.php \
+sudo -u www-data php /var/www/moodle/admin/cli/install.php \
   --lang=id --wwwroot=https://elearning.rainar.net --dataroot=/var/lib/moodledata \
   --dbtype=mariadb --dbhost=localhost --dbname=moodle --dbuser=moodle \
-  --dbpass='CHANGE_ME' --fullname='My Moodle' --shortname='Moodle' \
+  --dbpass='CHANGE_ME' --fullname='SMKN 1 CIBINONG' --shortname='SMKN 1 CIBINONG' \
   --adminuser=admin --adminpass='CHANGE_ADMIN_PASSWORD' \
   --adminemail='admin@example.invalid' --non-interactive --agree-license
 sudo chown root:www-data /var/www/moodle/config.php
 sudo chmod 0640 /var/www/moodle/config.php
 ```
+
+Nilai `--shortname` menentukan nama situs yang tampil di sisi kiri navbar. Jika Moodle sudah terinstal dengan nama lama, ubah nama situs tanpa instalasi ulang menggunakan:
+
+```bash
+sudo -u www-data php /var/www/moodle/admin/cli/cfg.php \
+  --component=core --name=fullname --set='SMKN 1 CIBINONG'
+sudo -u www-data php /var/www/moodle/admin/cli/cfg.php \
+  --component=core --name=shortname --set='SMKN 1 CIBINONG'
+sudo -u www-data php /var/www/moodle/admin/cli/purge_caches.php
+```
+
+## Fitur Absensi
+
+Repositori sudah menyertakan plugin resmi [Attendance](https://moodle.org/plugins/mod_attendance) di `public/mod/attendance`. Versi plugin yang disertakan mendukung Moodle 5.1 sampai 5.2. Setelah instalasi baru atau setiap kali kode plugin diperbarui, pasang atau perbarui tabel databasenya dengan:
+
+```bash
+sudo -u www-data php /var/www/moodle/admin/cli/upgrade.php --non-interactive
+sudo -u www-data php /var/www/moodle/admin/cli/purge_caches.php
+```
+
+Untuk membuat absensi dalam sebuah kursus:
+
+1. Masuk ke kursus sebagai administrator atau pengajar dan aktifkan **Mode edit**.
+2. Klik **Tambahkan aktivitas atau sumber daya**, lalu pilih **Attendance**.
+3. Isi nama aktivitas, misalnya `Absensi`, kemudian simpan.
+4. Buka aktivitas tersebut dan pilih **Add session** untuk membuat jadwal pertemuan.
+5. Gunakan status bawaan `Present`, `Absent`, `Late`, dan `Excused`, atau sesuaikan melalui tab **Status set**.
+6. Aktifkan **Allow students to record own attendance** pada sesi jika siswa diperbolehkan mengisi sendiri. Gunakan password atau QR code untuk membatasi akses.
+7. Gunakan tab **Report** atau **Export** untuk melihat dan mengunduh rekap kehadiran.
+
+Jika plugin belum muncul dalam pemilih aktivitas, periksa bahwa direktori `/var/www/moodle/public/mod/attendance` tersedia dan pastikan perintah upgrade di atas selesai tanpa galat.
 
 ## Import Pengguna dari CSV di Server
 
@@ -257,7 +330,7 @@ Moodle hanya menawarkan direktori yang berada di `/var/lib/moodledata/repository
 sudo chown -R www-data:www-data /var/lib/moodledata/repository
 sudo chmod 0770 /var/lib/moodledata/repository
 sudo chmod 0770 /var/lib/moodledata/repository/import-users
-sudo -u www-data php /var/www/moodle/public/admin/cli/purge_caches.php
+sudo -u www-data php /var/www/moodle/admin/cli/purge_caches.php
 ```
 
 ### Import Langsung melalui CLI
@@ -284,11 +357,12 @@ sudo rm /var/lib/moodledata/repository/import-users/users.csv
 ## Cron, Firewall, dan Pemeriksaan
 
 ```bash
-sudo sh -c 'printf "%s\n" "* * * * * www-data /usr/bin/php /var/www/moodle/public/admin/cli/cron.php >/dev/null 2>&1" > /etc/cron.d/moodle'
+sudo sh -c 'printf "%s\n" "* * * * * www-data /usr/bin/php /var/www/moodle/admin/cli/cron.php >/dev/null 2>&1" > /etc/cron.d/moodle'
 sudo chmod 0644 /etc/cron.d/moodle
 sudo ufw allow OpenSSH
 sudo ufw allow 'Apache Full'
-sudo ufw allow from 192.168.1.0/24 to any port 53
+sudo ufw allow from 172.20.3.0/24 to any port 53
+sudo ufw allow from 10.10.10.0/24 to any port 53
 sudo ufw enable
 systemctl --no-pager --full status apache2 mariadb named.service
 curl -kI https://rainar.net/
